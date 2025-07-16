@@ -3,16 +3,23 @@ import logging
 import os
 
 app = Flask(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
-        data = request.get_json()
+        # جرّب تفكيك JSON أولًا (رفيع الهمّة)
+        data = request.get_json(silent=True)
+        if data is None:
+            # إذا ما كان JSON صالح، أخذ البيانات من form-encoded
+            data = request.values.to_dict()
+
         app.logger.info(f"Received data: {data}")
 
-        message = data.get("message", "").strip().lower()
+        # المحتوى نأخذه من أي مكان ونتخلّص من None
+        message = (data.get("message") or "").strip().lower()
 
+        # الردود
         if message == "مرحبا":
             reply = "أهلاً وسهلاً بك في دليل خدمات القرين 🌟"
         elif message == "صيدلية":
@@ -34,13 +41,13 @@ def webhook():
 
     except Exception as e:
         app.logger.error(f"Error processing request: {e}")
+        # نُعيد دائمًا HTTP 200 لأن WhatsAuto يتوقع هذا
         return jsonify({"reply": "حدث خطأ أثناء معالجة الرسالة، حاول لاحقًا."})
 
 @app.route('/', methods=['GET'])
 def index():
-    return "✅ WhatsAuto Webhook is running"
+    return "✅ WhatsAuto webhook is running"
 
 if __name__ == "__main__":
-    # Render sets the port via the PORT environment variable
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
