@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import logging
 import os
-from urllib.parse import unquote_plus
+from urllib.parse import parse_qs, unquote_plus
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -51,11 +51,17 @@ def webhook(subpath):
                 ""
             )
 
-        # 4️⃣ جرّب الـ raw body كاملاً
+        # 4️⃣ تحسين fallback للـ raw body (URL-encoded string)
         if not message:
-            message = request.get_data(as_text=True) or ""
+            raw = request.get_data(as_text=True) or ""
+            qs = parse_qs(raw, keep_blank_values=True)
+            msg_val = qs.get("message", [None])[0]
+            if msg_val is not None:
+                message = unquote_plus(msg_val)
+            else:
+                message = raw
 
-        app.logger.info(f"Incoming message: {message!r}")
+        app.logger.info(f"Incoming message after parsing: {message!r}")
         reply = generate_reply(message)
 
         # لو GET نرجّع نص صريح، وإلا JSON
@@ -76,3 +82,4 @@ def index():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+```0
